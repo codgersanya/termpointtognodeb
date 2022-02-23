@@ -1,0 +1,529 @@
+#************************************************************#
+#                                                            #
+#       Function definition for termpointtognodeb            #
+#                                                            #
+#************************************************************#
+
+func fetchxnlistfile
+	$linecontent = readfile($xnlistfile)
+	for $n = 1 to $nr_of_lines
+		$source[$n] = $linecontent[$n] -s -.*
+		$target[$n] = $linecontent[$n] -s .*-
+		if $source[$n] = $target[$n]
+			$xnlistfileformatok = 3
+			break
+		else if $linecontent[$n] ~ [0-9]+[A-Z]+[^a-z]-[0-9]+[A-Z]+[^a-z]
+			$xnlistfileformatok = 1
+		else
+			$xnlistfileformatok = 0
+			break
+		fi
+	done
+	$n = $nr_of_lines
+endfunc
+
+func xnlistconfirm
+	!cat $path/tmp/xnlist.txt
+	!echo '\n'
+	for ever
+		$xnlistconfirm = readinput(y/n:)
+		if $xnlistconfirm ~ y || $xnlistconfirm ~ n
+			break		
+		else
+			!echo 'Please hit y(yes) or n(no)!'
+		fi
+	done
+	if $xnlistconfirm ~ y
+		break
+	else if $xnlistconfirm ~ n
+		!rm -r $path/tmp/xnlist.txt
+	fi
+endfunc
+
+func xnlistfileexist
+	!cat $path/tmp/x2listinp_file.txt
+	for ever
+		$xnlistfile = readinput(path/filename:)
+		$linecontent = testfile($xnlistfile)
+		if $nr_of_lines = 0
+			$xnlistfileformatok = 2
+		else
+			fetchxnlistfile
+		fi
+		if $xnlistfileformatok = 1
+			!cp $xnlistfile $path/tmp/xnlist.txt
+			!cat $path/tmp/x2listconfirm.txt
+			xnlistconfirm
+		else if $xnlistfileformatok = 0
+			!cat $path/tmp/fileformaterror.txt
+		else if $xnlistfileformatok = 2
+			!cat $path/tmp/x2filelistnotfound.txt
+		else if $xnlistfileformatok = 3
+			!cp $xnlistfile $path/tmp/xnlist.txt
+			!cat $path/tmp/targetisthesameassource.txt
+		fi
+	done
+endfunc	
+
+
+func innerloopmanual
+	if $xnlistfileformatok = 1
+		!cp $xnlistfile $path/tmp/xnlist.txt
+		!cat $path/tmp/x2listconfirm.txt
+		xnlistconfirm
+	else if $xnlistfileformatok = 0
+		!cat $path/tmp/badformat.txt
+	else if $xnlistfileformatok = 3
+		!cp $xnlistfile $path/tmp/xnlist.txt
+		!cat $path/tmp/targetisthesameassource.txt
+	fi
+	!rm $path/tmp/xnlist.txt
+endfunc
+
+func manual		
+	!cat $path/tmp/x2listinp_manual.txt
+	for ever
+		$n = $n + 1
+		$termpointtognb[$n] = readinput(termpointtognb / f[finished]:)
+
+			if $termpointtognb[$n] ~ f
+			fetchxnlistfile
+			innerloopmanual
+			else 
+				!echo $termpointtognb[$n] >> $path/tmp/xnlist.txt
+				$xnlistfile = $path/tmp/xnlist.txt
+			fi
+	done
+endfunc
+
+func input	
+	!cat $path/tmp/input_method.txt
+	for ever
+		$inputmethod = readinput(y/n:)
+		if $inputmethod ~ y
+			xnlistfileexist
+			break
+		else if $inputmethod ~ n
+			manual
+			break
+		else
+			!echo 'Please hit y(yes) or n(no)!'
+		fi
+	done
+endfunc
+
+func writesequence
+	!rm -f $path/tmp/sequence.txt
+	!echo '$sequence' >>					$path/tmp/sequence.txt
+	!echo '$source[$sequence]' >>			$path/tmp/sequence.txt
+	!echo '$target[$sequence]' >>			$path/tmp/sequence.txt
+endfunc
+
+func targetsub
+	!monode $target[$sequence] 'runx $termpointtognodeb_targetsub'
+	$linecontent = testfile($path/tmp/targetcontactok[$sequence].txt)
+	$targetcontactok = $nr_of_lines
+	$linecontent = testfile($path/tmp/ratfoundtarget[$sequence].txt)
+	$ratfoundtarget = $nr_of_lines
+	$linecontent = testfile($path/tmp/incompletemostructuretarget[$sequence].txt)
+	$incompletemostructuretarget = $nr_of_lines
+endfunc
+
+func sourcesub
+	!monode $source[$sequence] 'runx $termpointtognodeb_sourcesub'
+	$linecontent = testfile($path/tmp/sourcecontactok[$sequence].txt)
+	$sourcecontactok = $nr_of_lines
+	$linecontent = testfile($path/tmp/ratfoundsource[$sequence].txt)
+	$ratfoundsource = $nr_of_lines
+	$linecontent = testfile($path/tmp/incompletemostructuresource[$sequence].txt)
+	$incompletemostructuresource = $nr_of_lines
+endfunc
+
+func displayresult
+	!cat $path/tmp/finish.txt
+	!cat $path/tmp/result.txt
+	$linecontent = readfile($path/tmp/sctpcrfail.log)
+	if $nr_of_lines > 1
+		!cat $path/tmp/sctpcrfail.log
+	fi
+	$linecontent = readfile($path/tmp/localsctpendpointcrfail.log)
+	if $nr_of_lines > 1
+		!cat $path/tmp/localsctpendpointcrfail.log
+	fi
+	$linecontent = readfile($path/tmp/restartneededsctpchng.log)
+	if $nr_of_lines > 1
+		!cat $path/tmp/restartneededsctpchng.log
+	fi
+endfunc
+
+func fetchresult
+	$linecontent = readfile($path/tmp/sourcedata[$sequence].txt)
+	$xnldnsource = 								$linecontent[8]
+	$xnnotcreatedonsource = 					$linecontent[9]
+	$xnopstsource = 							$linecontent[10]
+	$exst_xn_source = 							$linecontent[11]
+	$addradjustedsource = 						$linecontent[12]
+	
+	!monode $target[$sequence] 'runx $termpointtognodeb_targetresultsub'
+	
+	$linecontent = readfile($path/tmp/targetresultdata[$sequence].txt)
+	$xnldntarget = 								$linecontent[1]
+	$xnnotcreatedontarget = 					$linecontent[2]
+	$xnopsttarget = 							$linecontent[3]
+	$exst_xn_target = 							$linecontent[4]
+	$addradjustedtarget =						$linecontent[5]
+endfunc
+
+func ifsourceok
+	if $sourcecontactok = 1 && $ratfoundsource = 1
+		fetchresult
+	fi
+endfunc
+
+func writeresult
+	$xnsource = $xnldnsource -s .*,
+	$xntarget = $xnldntarget -s .*,
+	
+	if $targetcontactok = 0
+		!echo 'GNB1-GNB2: $target[$sequence]-$source[$sequence]: NO CONTACT TO GNB2' >> $path/tmp/result.txt
+	else if $ratfoundtarget = 0
+		!echo 'GNB1-GNB2: $target[$sequence]-$source[$sequence]: NO NRRAT FOUND ON GNB2' >> $path/tmp/result.txt
+	else if $sourcecontactok = 0
+		!echo 'GNB1-GNB2: $target[$sequence]-$source[$sequence]: NO CONTACT TO GNB1' >> $path/tmp/result.txt
+	else if $ratfoundsource = 0
+		!echo 'GNB1-GNB2: $target[$sequence]-$source[$sequence]: NO NRRAT FOUND ON GNB1' >> $path/tmp/result.txt
+	else if $incompletemostructuretarget = 1
+		!echo 'GNB1-GNB2: $target[$sequence]-$source[$sequence]: INCOMPLETE MOM ON GNB2' >> $path/tmp/result.txt		
+	else if $incompletemostructuresource = 1
+		!echo 'GNB1-GNB2: $target[$sequence]-$source[$sequence]: INCOMPLETE MOM ON GNB1' >> $path/tmp/result.txt		
+	else if $xnnotcreatedonsource = 1
+		!echo 'GNB1-GNB2: $target[$sequence]-$source[$sequence]: Warning: XN CR FAIL on GNB1!' >> $path/tmp/result.txt	
+	else if $xnnotcreatedontarget = 1
+		!echo 'GNB1-GNB2: $target[$sequence]-$source[$sequence]: Warning: XN CRE-FAIL on GNB2!' >> $path/tmp/result.txt
+	else
+		!echo '$source[$sequence] $xnsource $xnopstsource $exst_xn_source $addradjustedsource $target[$sequence] $xntarget $xnopsttarget $exst_xn_target $addradjustedtarget' >> $path/tmp/result.txt	
+	fi
+endfunc
+
+func getsequence
+	$lineContent = readfile($path/tmp/sequence.txt)
+	$sequence =					$lineContent[1]
+	$source[$sequence] =		$lineContent[2]
+	$target[$sequence] =		$lineContent[3]
+endfunc
+
+func contactind_source
+	!echo 'SOURCE CONTACT OK' >> $path/tmp/sourcecontactok[$sequence].txt
+endfunc
+	
+func checkifgnb_source
+	pv $rats
+	if $rats ~ N
+		!echo 'NRRAT FOUND SOURCE' >> $path/tmp/ratfoundsource[$sequence].txt
+	else
+		$return = 1
+	fi
+endfunc
+
+func contactind_target
+	!echo 'TARGET CONTACT OK' >> $path/tmp/targetcontactok[$sequence].txt
+endfunc
+
+func checkifgnb_target
+	pv $rats
+	if $rats ~ N
+		!echo 'NRRAT FOUND TARGET' >> $path/tmp/ratfoundtarget[$sequence].txt
+	else
+		$return = 1
+	fi
+endfunc
+
+func writedata
+	#$1 stands for target or source or targetresult
+	#This function must be called with parameter $1
+	if $1 = target
+		!echo '$gnbid'	>>								$path/tmp/$1data[$sequence].txt
+		!echo '$gnbidlength' >> 						$path/tmp/$1data[$sequence].txt
+		!echo '$plmnid[mcc]' >>							$path/tmp/$1data[$sequence].txt
+		!echo '$plmnid[mnc]' >>							$path/tmp/$1data[$sequence].txt
+		!echo '$outeraddress' >>	 					$path/tmp/$1data[$sequence].txt
+		!echo '$inneraddress' >>	 					$path/tmp/$1data[$sequence].txt
+		!echo '$upipaddress' >>	 						$path/tmp/$1data[$sequence].txt
+			
+	else if $1 = source	
+		!echo '$gnbid'	>>								$path/tmp/$1data[$sequence].txt
+		!echo '$gnbidlength' >> 						$path/tmp/$1data[$sequence].txt
+		!echo '$plmnid[mcc]' >>							$path/tmp/$1data[$sequence].txt
+		!echo '$plmnid[mnc]' >>							$path/tmp/$1data[$sequence].txt
+		!echo '$outeraddress' >>	 					$path/tmp/$1data[$sequence].txt
+		!echo '$inneraddress' >>	 					$path/tmp/$1data[$sequence].txt
+		!echo '$upipaddress' >>	 						$path/tmp/$1data[$sequence].txt
+		!echo '$xnldn' >> 								$path/tmp/$1data[$sequence].txt
+		!echo '$xnnotcreated' >>						$path/tmp/$1data[$sequence].txt
+		!echo '$xnopst' >>	 							$path/tmp/$1data[$sequence].txt
+		!echo '$exst_xn' >> 							$path/tmp/$1data[$sequence].txt
+		!echo '$addradjusted' >>						$path/tmp/$1data[$sequence].txt
+
+	else if $1 = targetresult
+		!echo '$xnldn' >>								$path/tmp/$1data[$sequence].txt
+		!echo '$xnnotcreated' >>						$path/tmp/$1data[$sequence].txt
+		!echo '$xnopst' >>								$path/tmp/$1data[$sequence].txt
+		!echo '$exst_xn' >> 							$path/tmp/$1data[$sequence].txt
+		!echo '$addradjusted' >>						$path/tmp/$1data[$sequence].txt		
+	fi
+endfunc
+
+func fetchdata
+	#$1 stands for either target or source
+	#This function must be called with $1
+	$lineContent = 								readfile($path/tmp/$1data[$sequence].txt)
+	$extgnbid =									$lineContent[1]
+	$gnbidlength = 								$lineContent[2]
+	$extplmnid[mcc] =							$lineContent[3]
+	$extplmnid[mnc] =							$lineContent[4]
+	$extouteraddress =							$lineContent[5]
+	$extinneraddress =							$lineContent[6]
+	$extupipaddress =							$lineContent[7]
+endfunc
+
+func extgnbfcheck
+	ma extgnbf ExternalGNBCUCPFunction gnbid ^$extgnbid$ 
+	if $nr_of_mos = 0
+		extgnbfcr
+	else
+		for $mo in extgnbf
+			$extgnbfldn = ldn($mo)
+		done
+	fi
+endfunc	
+
+func extgnbfcr
+	$extgnbfldn = $nrnwldn,ExternalGNBCUCPFunction=$extplmnid[mcc]$extplmnid[mnc]-$extgnbid
+	crn $extgnbfldn
+	gnbid $extgnbid
+	gNBIdLength $gnbidlength
+	pLMNId mcc=$extplmnid[mcc],mnc=$extplmnid[mnc]
+	end
+endfunc
+
+func checkipaddress
+	$xnrdn = $xnldn -s .*
+	$addradjusted = NO
+	
+	if $ipv4address != $extinneraddress$
+		set $xnldn administrativeState 0
+		set $xnldn ipv4address $extinneraddress
+		set $xnldn administrativeState 1
+		$addradjusted = YES
+	else if $upipaddress != $extupipaddress
+		set $xnldn administrativeState 0
+		set $xnldn upipAddress $extupipaddress
+		set $xnldn administrativeState 1
+		$addradjusted = YES
+	else if $outeraddress != $extouteraddress
+		set $xnldn administrativeState 0
+		set $xnldn ipsecEpAddress $extouteraddress
+		set $xnldn administrativeState 1	
+		$addradjusted = YES
+	fi
+endfunc
+
+func xncr
+	crn $xnldn
+	end
+	set $xnldn ipv4address $extinneraddress
+	set $xnldn upIpAddress $extupipaddress
+   #set $xnldn ipsecEpAddress $extouteraddress
+   	pr $xnldn
+	if $nr_of_mos = 0
+		$xnnotcreated = 1
+	else
+		set $xnldn administrativeState 1
+		get $xnldn operationalstate > $xnopst
+	fi
+endfunc
+
+func admstate
+	set $xnldn administrativeState 1
+endfunc
+
+func xnresult
+	get $xnldn operationalState > $xnopst
+endfunc
+
+func xncheck
+	$exst_xn = NO
+	$addradjusted = NO
+	ma xn $extgnbfldn,termpointtognodeb
+		for $mo in xn
+			$xnldn = ldn($mo)
+		done
+	pr $xnldn
+	if $nr_of_mos > 0
+		get $xnldn ^ipv4address$ > $inneraddress
+		get $xnldn ^upipaddress$ > $upipaddress
+		get $xnldn ^ipsecEpAddress > $outeraddress
+		$exst_xn = YES
+		checkipaddress
+	else
+		$exst_xn = NO
+		$xnldn = $extgnbfldn,TermPointToGNodeB=$extplmnid[mcc]$extplmnid[mnc]-$extgnbid
+		xncr
+	fi
+endfunc
+
+func sctpcheck
+#This function will be called with parameter $1 (source / target), which will be sent forward to func "sctpcr"
+	
+	#Is LocalSctpEndpoint for Xn (LocalSctpEndpoint.interfaceUsed = 6) defined?
+	#If LocalSctpEndpoint for Xn already defined, take it as basis:
+	
+	for $interfaceused = 6 to 7	
+		mr LocalSctpEndpoint
+		ma LocalSctpEndpoint LocalSctpEndpoint= interfaceUsed $interfaceused
+		
+		mr sctpEndpointRef
+		ma sctpEndpointRef LocalSctpEndpoint sctpEndpointRef
+		
+		#Is sctpEndpointRef the correct one with port 38422?
+		get sctpEndpointRef portNumber > $portNumber
+		if $portNumber = 38422
+			$sctpendpointdefined = 1
+			$localsctpendpointdefined = 1
+			#If sctpEndpointRef is the correct one, break out from the loop:
+			break
+		fi
+		#If LocalSctpEndpoint for Xn is not defined take LocalSctpEndpoint of X2 for basis (continue the loop with $interfaceused = 7)
+	done
+	
+	#Take SctpEndPoint's localIpAddress:
+	ma localipaddress sctpEndpointRef localIpAddress
+	for $mo in localipaddress
+		$localipaddressldn = ldn($mo)
+	done
+	get $localipaddressldn ^address$ > $inneraddress
+	$inneraddress = $inneraddress -s /.*
+	
+	#If the loop reached $interfaceused = 7, create sctp:
+	if $interfaceused = 7
+		sctpcr $1
+	fi
+endfunc
+
+func sctpcr $1
+	if $sctpendpointdefined = 0
+		$SctpEndpointldn = $transport,SctpEndpoint=xn
+		$SctpEndpointrdn = SctpEndpoint=xn
+		crn $SctpEndpointldn
+			dtlsNodeCredential 
+			dtlsSctpSecurityMode 0
+			dtlsTrustCategory 
+			localIpAddress $localipaddressldn
+			portNumber 38422
+			sctpProfile SctpProfile=1
+			userLabel 
+		end
+		pr $SctpEndpointldn
+		$SctpEndpointcrsucc = $nr_of_mos
+	fi
+
+	mr LocalSctpEndpoint
+	ma LocalSctpEndpoint LocalSctpEndpoint= interfaceUsed 6
+		if $nr_of_mos = 0
+			crn $LocalSctpEndpointldn
+				interfaceUsed 6
+				sctpEndpointRef $SctpEndpointrdn
+			end
+			pr $LocalSctpEndpointldn
+			$localsctpendpointsucc = $nr_of_mos
+		fi
+	
+	if $SctpEndpointcrsucc = 0
+		!echo 'GNB: $$1[$sequence] gnbid: $gnbid' >> $path/tmp/sctpcrfail.log
+	else if $localsctpendpointsucc = 0
+		!echo 'GNB: $$1[$sequence] gnbid: $gnbid' >> $path/tmp/localsctpendpointcrfail.log		
+	else if $interfaceused = 7
+		!echo 'GNB: $$1[$sequence]' >> $path/tmp/restartneededsctpchng.log
+		#acc bb-1 restartunit 1 0 sctpchange
+	fi
+endfunc
+
+func getdata
+$Called with $1 (source / target)
+	mr GNBCUCPFunction
+	ma GNBCUCPFunction ^GNBCUCPFunction=
+	if $nr_of_mos = 0
+		$incompletemostructure = 1
+	fi
+	 for $mo in GNBCUCPFunction
+ 		$gnbcucpfunctionldn = ldn($mo)
+ 	done
+	
+	get $gnbcucpfunctionldn gnbid$ > $gnbid
+	get $gnbcucpfunctionldn gNBIdLength > $gnbidlength
+	get $gnbcucpfunctionldn pLMNId > $plmnid	
+	
+	mr nrnw
+ 	ma nrnw ^NRNetwork=
+	if $nr_of_mos = 0
+		$incompletemostructure = 1
+	fi
+ 	for $mo in nrnw
+ 		$nrnwldn = ldn($mo)
+ 	done
+ 	
+ 	mr Transport
+ 	ma Transport Transport=
+	if $nr_of_mos = 0
+		$incompletemostructure = 1
+	fi
+ 	for $mo in Transport
+ 		$transport = rdn($mo)
+ 	done
+ 	
+ 	mr EndpointResource
+ 	ma EndpointResource $gnbcucpfunctionldn,EndpointResource=
+	if $nr_of_mos = 0
+		$incompletemostructure = 1
+	fi
+ 	for $mo in EndpointResource
+ 		$endpointResource = ldn($mo)
+ 	done
+		
+	ma localipendp LocalIpEndpoint interfaceList 7
+	if $nr_of_mos = 0
+		$incompletemostructure = 1
+	fi
+	for $mo in localipendp
+		$localipendpldn = ldn($mo)
+	done
+	ma upaddressref $localipendpldn addressRef
+	if $nr_of_mos = 0
+		$incompletemostructure = 1
+	fi
+	for $mo in upaddressref
+		$upaddressldn = ldn($mo)
+	done
+	get $upaddressldn ^address$ > $upipaddress
+	$upipaddress = $upipaddress -s /.*
+	
+	ma ipsecendp LocalIPsecEndpoint interfaceList 7
+	if $nr_of_mos = 0
+		$incompletemostructure = 1
+	fi
+	for $mo in ipsecendp
+		$ipsecendpldn = ldn($mo)
+	done
+	ma gnbouteraddressref $ipsecendpldn outerIpAddressRef
+	if $nr_of_mos = 0
+		$incompletemostructure = 1
+	fi
+	for $mo in gnbouteraddressref
+		$outeraddressldn = ldn($mo)
+	done
+	get $outeraddressldn ^address$ > $outeraddress
+	$outeraddress = $outeraddress -s /.*
+	if $incompletemostructure = 1
+		!echo 'MOM-structure incomplete!' >> $path/tmp/incompletemostructure$1[$sequence].txt
+	fi
+endfunc

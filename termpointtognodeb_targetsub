@@ -1,0 +1,50 @@
+#*************************************#
+#                                     #
+#    termpointtognodeb_targetsub      #
+#                                     #
+#*************************************#
+
+unset all
+$return = 0
+lt all
+
+#*************************************#
+#     initial variables start         #
+#*************************************#
+
+#Find main path and termpointtognodeb_functions
+!find ~/ -name pathtotermpointtognodeb >> 				path
+$linecontent = 											readfile(path)
+$path = 												$linecontent[1]
+$linecontent = 											readfile($path)
+$termpointtognodeb_functions =							$linecontent[5]
+$path = $path -s /pathtotermpointtognodeb
+!rm -f path
+
+#*************************************#
+#     initial variables end           #
+#*************************************#
+
+l+ $path/log/targetsub.log
+
+#*************************************#
+#       main sequence starts          #
+#*************************************#
+
+run $termpointtognodeb_functions
+getsequence
+contactind_target
+checkifgnb_target
+if $return = 1
+	return
+else
+	getdata target
+	sctpcheck target
+	writedata target
+fi
+
+#*************************************#
+#       main sequence ends            #
+#*************************************#
+
+l-
